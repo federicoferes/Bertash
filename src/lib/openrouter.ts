@@ -10,11 +10,34 @@ const supabase = supabaseUrl && supabaseAnonKey
   ? createClient(supabaseUrl, supabaseAnonKey)
   : null;
 
-export const callOpenRouter = async (messages: any[], model: string) => {
+export type ChatMessage = {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+};
+
+export type OpenRouterSettings = {
+  temperature?: number;
+  max_tokens?: number;
+  top_p?: number;
+};
+
+export const callOpenRouter = async (
+  messages: ChatMessage[],
+  model: string,
+  settings?: OpenRouterSettings
+) => {
+  const body = {
+    model,
+    messages,
+    temperature: settings?.temperature ?? 0.72,
+    max_tokens: settings?.max_tokens ?? 4096,
+    top_p: settings?.top_p ?? 0.95,
+  };
+
   // Ruta preferida: Edge Function de Supabase (segura, funciona en Lovable)
   if (supabase) {
     const { data, error } = await supabase.functions.invoke('chat', {
-      body: { messages, model },
+      body,
     });
     if (error) throw new Error(error.message);
     return data;
@@ -38,7 +61,7 @@ export const callOpenRouter = async (messages: any[], model: string) => {
       'X-Title': 'Bertash',
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ model, messages }),
+    body: JSON.stringify(body),
   });
 
   if (!response.ok) {

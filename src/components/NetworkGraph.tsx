@@ -1,105 +1,161 @@
-import { motion } from 'framer-motion'
-import { Brain, Zap, MessageSquare, Database, Share2 } from 'lucide-react'
+import { useCallback, useRef } from 'react';
+import {
+    ReactFlow,
+    Background,
+    Controls,
+    MiniMap,
+    BackgroundVariant,
+    Panel,
+    type ReactFlowInstance,
+} from '@xyflow/react';
+import '@xyflow/react/dist/style.css';
+import { useStore } from '../store/useStore';
+import { AIChatNode } from './nodes/AIChatNode';
+import { MediaNode } from './nodes/MediaNode';
+import { DocumentNode } from './nodes/DocumentNode';
+import { Plus, LayoutGrid, Zap } from 'lucide-react';
 
-const nodes = [
-  { id: 1, x: 200, y: 150, icon: Brain, label: 'LLM Node', color: '#6366f1' },
-  { id: 2, x: 450, y: 100, icon: Database, label: 'Knowledge Base', color: '#8b5cf6' },
-  { id: 3, x: 150, y: 400, icon: MessageSquare, label: 'User Input', color: '#ec4899' },
-  { id: 4, x: 600, y: 350, icon: Zap, label: 'Action Output', color: '#f59e0b' },
-  { id: 5, x: 400, y: 300, icon: Share2, label: 'Router', color: '#10b981' },
-]
+const nodeTypes = {
+    aiChat: AIChatNode,
+    media: MediaNode,
+    document: DocumentNode,
+};
 
-const links = [
-  { from: 1, to: 2 },
-  { from: 1, to: 5 },
-  { from: 3, to: 5 },
-  { from: 5, to: 4 },
-  { from: 2, to: 4 },
-]
+let nodeIdCounter = 100;
 
 export const NetworkGraph = () => {
-  return (
-    <div className="relative w-full h-[600px] glass-card rounded-3xl border border-white/5 overflow-hidden flex items-center justify-center">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.05)_0%,transparent_70%)]" />
-      
-      <svg className="w-full h-full">
-        {links.map((link, i) => {
-          const fromNode = nodes.find(n => n.id === link.from)!
-          const toNode = nodes.find(n => n.id === link.to)!
-          return (
-            <motion.line
-              key={i}
-              x1={fromNode.x}
-              y1={fromNode.y}
-              x2={toNode.x}
-              y2={toNode.y}
-              stroke="url(#lineGradient)"
-              strokeWidth="2"
-              initial={{ pathLength: 0, opacity: 0 }}
-              animate={{ pathLength: 1, opacity: 0.2 }}
-              transition={{ duration: 1.5, delay: i * 0.2 }}
-            />
-          )
-        })}
-        <defs>
-          <linearGradient id="lineGradient" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stopColor="rgba(255,255,255,0.1)" />
-            <stop offset="50%" stopColor="rgba(99,102,241,0.5)" />
-            <stop offset="100%" stopColor="rgba(255,255,255,0.1)" />
-          </linearGradient>
-        </defs>
-      </svg>
+    const { nodes, edges, onNodesChange, onEdgesChange, onConnect, addNode, setNodes, setEdges } = useStore();
+    const rfInstanceRef = useRef<ReactFlowInstance | null>(null);
 
-      {nodes.map((node) => {
-        const Icon = node.icon
-        return (
-          <motion.div
-            key={node.id}
-            drag
-            dragConstraints={{ top: 0, left: 0, right: 0, bottom: 0 }}
-            dragElastic={0.1}
-            className="absolute cursor-grab active:cursor-grabbing group"
-            style={{ left: node.x, top: node.y }}
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ type: 'spring', damping: 12, delay: node.id * 0.1 }}
-          >
-            <div className="relative">
-              <div 
-                className="absolute inset-0 blur-xl opacity-20 group-hover:opacity-40 transition-opacity"
-                style={{ backgroundColor: node.color }}
-              />
-              <div 
-                className="relative w-16 h-16 rounded-2xl flex items-center justify-center glass border border-white/10 shadow-2xl transition-transform group-hover:scale-110"
-                style={{ backgroundColor: `${node.color}10` }}
-              >
-                <Icon className="w-8 h-8" style={{ color: node.color }} />
-              </div>
-              <div className="absolute top-20 left-1/2 -translate-x-1/2 whitespace-nowrap">
-                <span className="text-xs font-medium text-muted-foreground bg-black/40 px-2 py-1 rounded-md backdrop-blur-md border border-white/5">
-                  {node.label}
-                </span>
-              </div>
-            </div>
-          </motion.div>
-        )
-      })}
+    const handleAutoLayout = useCallback(() => {
+        // Simple auto-layout: distribute nodes in a grid
+        const cols = Math.ceil(Math.sqrt(nodes.length));
+        const SPACING_X = 460;
+        const SPACING_Y = 350;
+        const OFFSET_X = 80;
+        const OFFSET_Y = 80;
 
-      <div className="absolute bottom-6 left-6 flex flex-col gap-2">
-        <h3 className="text-sm font-semibold text-foreground/80">Interactive Neural Web</h3>
-        <p className="text-xs text-muted-foreground max-w-[200px]">
-          Drag nodes to reorganize the architecture. Right-click to configure parameters.
-        </p>
-      </div>
-      
-      <div className="absolute top-6 right-6 flex gap-2">
-        <button className="px-4 py-2 glass rounded-full text-xs font-medium hover:bg-white/5 transition-colors">
-          Auto-Layout
-        </button>
-        <button className="px-4 py-2 bg-primary text-white rounded-full text-xs font-bold shadow-lg shadow-primary/20 hover:scale-105 transition-all">
-          Deploy Network
-        </button>
-      </div>
-    </div>
-  )
-}
+        const rePositioned = nodes.map((node, i) => ({
+            ...node,
+            position: {
+                x: OFFSET_X + (i % cols) * SPACING_X,
+                y: OFFSET_Y + Math.floor(i / cols) * SPACING_Y,
+            },
+        }));
+        setNodes(rePositioned);
+    }, [nodes, setNodes]);
+
+    const addMediaNode = useCallback(() => {
+        const id = `media-${++nodeIdCounter}`;
+        addNode({
+            id,
+            type: 'media',
+            position: { x: 100 + Math.random() * 300, y: 100 + Math.random() * 200 },
+            data: { label: 'Nuevo Video', url: '', transcription: '' },
+        });
+    }, [addNode]);
+
+    const addDocNode = useCallback(() => {
+        const id = `doc-${++nodeIdCounter}`;
+        addNode({
+            id,
+            type: 'document',
+            position: { x: 500 + Math.random() * 200, y: 80 + Math.random() * 200 },
+            data: { label: 'Nuevo Documento', content: '' },
+        });
+    }, [addNode]);
+
+    const addChatNode = useCallback(() => {
+        const id = `chat-${++nodeIdCounter}`;
+        addNode({
+            id,
+            type: 'aiChat',
+            position: { x: 300 + Math.random() * 200, y: 250 + Math.random() * 200 },
+            data: {
+                label: 'Nuevo Agente',
+                messages: [{ role: 'assistant', content: '¡Hola! Soy un nuevo agente Bertash. ¿En qué te ayudo?' }],
+            },
+        });
+    }, [addNode]);
+
+    return (
+        <div className="w-full h-full relative rounded-3xl overflow-hidden border border-white/5">
+            <ReactFlow
+                nodes={nodes}
+                edges={edges}
+                onNodesChange={onNodesChange}
+                onEdgesChange={onEdgesChange}
+                onConnect={onConnect}
+                nodeTypes={nodeTypes}
+                onInit={(instance) => { rfInstanceRef.current = instance; }}
+                fitView
+                fitViewOptions={{ padding: 0.2 }}
+                deleteKeyCode="Delete"
+                className="bg-background"
+                defaultEdgeOptions={{
+                    animated: true,
+                    style: { stroke: '#6366f1', strokeWidth: 2 },
+                }}
+            >
+                <Background
+                    variant={BackgroundVariant.Dots}
+                    gap={24}
+                    size={1}
+                    color="rgba(255,255,255,0.06)"
+                />
+                <Controls className="!border-white/10 !bg-background/80 !backdrop-blur !rounded-2xl !shadow-xl" />
+                <MiniMap
+                    className="!border-white/5 !bg-background/80 !backdrop-blur !rounded-2xl"
+                    nodeColor={(node) => {
+                        if (node.type === 'aiChat') return '#6366f1';
+                        if (node.type === 'media') return '#ec4899';
+                        return '#8b5cf6';
+                    }}
+                    maskColor="rgba(0,0,0,0.5)"
+                />
+
+                {/* Top-right action panel */}
+                <Panel position="top-right" className="flex gap-2">
+                    <button
+                        onClick={addMediaNode}
+                        className="flex items-center gap-2 px-3 py-2 bg-background/80 backdrop-blur border border-white/10 rounded-xl text-xs font-bold text-pink-400 hover:bg-pink-500/10 hover:border-pink-500/30 transition-all shadow-lg"
+                    >
+                        <Plus className="w-3.5 h-3.5" /> Video
+                    </button>
+                    <button
+                        onClick={addDocNode}
+                        className="flex items-center gap-2 px-3 py-2 bg-background/80 backdrop-blur border border-white/10 rounded-xl text-xs font-bold text-indigo-400 hover:bg-indigo-500/10 hover:border-indigo-500/30 transition-all shadow-lg"
+                    >
+                        <Plus className="w-3.5 h-3.5" /> Doc
+                    </button>
+                    <button
+                        onClick={addChatNode}
+                        className="flex items-center gap-2 px-3 py-2 bg-background/80 backdrop-blur border border-white/10 rounded-xl text-xs font-bold text-purple-400 hover:bg-purple-500/10 hover:border-purple-500/30 transition-all shadow-lg"
+                    >
+                        <Plus className="w-3.5 h-3.5" /> Agente
+                    </button>
+                    <button
+                        onClick={handleAutoLayout}
+                        className="flex items-center gap-2 px-4 py-2 bg-background/80 backdrop-blur border border-white/10 rounded-xl text-xs font-bold text-muted-foreground hover:bg-white/5 transition-all shadow-lg"
+                    >
+                        <LayoutGrid className="w-3.5 h-3.5" /> Auto-Layout
+                    </button>
+                    <button
+                        onClick={() => rfInstanceRef.current?.fitView({ padding: 0.2 })}
+                        className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-xl text-xs font-bold shadow-lg shadow-primary/20 hover:scale-105 transition-all"
+                    >
+                        <Zap className="w-3.5 h-3.5" /> Deploy Network
+                    </button>
+                </Panel>
+
+                {/* Bottom-left hint */}
+                <Panel position="bottom-left">
+                    <div className="flex flex-col gap-1 text-[10px] text-muted-foreground font-mono bg-background/60 backdrop-blur border border-white/5 rounded-xl px-3 py-2">
+                        <span className="text-foreground/50">🔌 Arrastrá los nodos para conectarlos</span>
+                        <span className="text-foreground/50">🗑️ Seleccioná + Delete para eliminar</span>
+                    </div>
+                </Panel>
+            </ReactFlow>
+        </div>
+    );
+};
