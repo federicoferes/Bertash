@@ -35,6 +35,44 @@ export type AIChatNodeData = {
 export type DocumentNodeData = {
     label: string;
     content?: string;
+    fileName?: string;
+    fileType?: string;
+    isParsing?: boolean;
+};
+
+export type SocialPost = {
+    caption?: string;
+    likes?: number;
+    comments?: number;
+    views?: number;
+    date?: string;
+    url?: string;
+};
+
+export type SocialProfileData = {
+    label: string;
+    input?: string;           // URL o @usuario que pegó el usuario
+    network?: 'instagram' | 'tiktok';
+    username?: string;
+    fullName?: string;
+    bio?: string;
+    followers?: number;
+    following?: number;
+    postsCount?: number;
+    verified?: boolean;
+    posts?: SocialPost[];
+    isLoading?: boolean;
+    error?: string;
+};
+
+export type ImageGenNodeData = {
+    label: string;
+    modelSlug?: string;
+    prompt?: string;
+    params?: Record<string, unknown>;
+    resultUrl?: string;
+    isLoading?: boolean;
+    error?: string;
 };
 
 // ─── Store ───────────────────────────────────────────────────────────────────
@@ -62,6 +100,7 @@ export type AppState = {
     // Computed context helpers (read from current nodes)
     getBrandRules: () => string;
     getMediaContext: () => string;
+    getSocialContext: () => string;
 };
 
 const initialNodes: Node[] = [
@@ -155,5 +194,39 @@ export const useStore = create<AppState>((set, get) => ({
             })
             .filter(Boolean);
         return parts.join('\n\n');
+    },
+
+    getSocialContext: () => {
+        const socialNodes = get().nodes.filter((n) => n.type === 'social');
+        const parts = socialNodes
+            .map((n) => {
+                const d = n.data as SocialProfileData;
+                if (!d.username && !d.bio && !(d.posts?.length)) return null;
+                const net = d.network === 'tiktok' ? 'TikTok' : 'Instagram';
+                let part = `📱 ${net} — @${d.username || d.input || ''}`;
+                if (d.fullName) part += ` (${d.fullName})`;
+                if (d.verified) part += ' ✓';
+                const stats: string[] = [];
+                if (d.followers != null) stats.push(`${d.followers} seguidores`);
+                if (d.following != null) stats.push(`${d.following} siguiendo`);
+                if (d.postsCount != null) stats.push(`${d.postsCount} posts`);
+                if (stats.length) part += `\n${stats.join(' · ')}`;
+                if (d.bio) part += `\nBIO: ${d.bio}`;
+                if (d.posts?.length) {
+                    part += `\nÚltimos ${d.posts.length} posts:`;
+                    d.posts.forEach((p, i) => {
+                        const m: string[] = [];
+                        if (p.likes != null) m.push(`${p.likes} likes`);
+                        if (p.comments != null) m.push(`${p.comments} comentarios`);
+                        if (p.views != null) m.push(`${p.views} views`);
+                        part += `\n${i + 1}. ${(p.caption || '(sin texto)').slice(0, 280)}`;
+                        if (m.length) part += ` [${m.join(', ')}]`;
+                        if (p.date) part += ` — ${p.date}`;
+                    });
+                }
+                return part;
+            })
+            .filter(Boolean);
+        return parts.join('\n\n---\n\n');
     },
 }));

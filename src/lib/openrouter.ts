@@ -1,14 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
-
-// En desarrollo local usa las variables de entorno de .env
-// En Lovable, configurar en Project Settings → Environment Variables
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-// Fallback: si no hay Supabase configurado, llamar directamente (solo para desarrollo local)
-const supabase = supabaseUrl && supabaseAnonKey
-  ? createClient(supabaseUrl, supabaseAnonKey)
-  : null;
+import { supabase } from './supabaseClient';
 
 export type ChatMessage = {
   role: 'system' | 'user' | 'assistant';

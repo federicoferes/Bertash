@@ -1,9 +1,10 @@
 import { Handle, Position, type NodeProps, type Node } from '@xyflow/react';
-import { Bot, Sparkles, FileText, Send, Database, ShieldCheck, Loader2, Link, Book } from 'lucide-react';
+import { Bot, Sparkles, FileText, Send, Database, ShieldCheck, Loader2, Link, Book, Eye, Share2 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { useStore } from '../../store/useStore';
 import { useState, useRef, useEffect } from 'react';
 import { callOpenRouter, type ChatMessage } from '../../lib/openrouter';
+import { CHAT_MODELS, CHAT_MODELS_BY_ID, DEFAULT_CHAT_MODEL } from '../../config/chatModels';
 
 export type Message = {
     role: 'user' | 'assistant';
@@ -16,26 +17,21 @@ export type AIChatNodeData = {
     messages?: Message[];
 };
 
-const MODELS = [
-    { id: 'google/gemini-2.0-flash-exp:free', name: 'Gemini 2.0 Free', color: 'text-blue-500', bg: 'bg-blue-500/10' },
-    { id: 'google/gemini-2.0-flash-001', name: 'Gemini 2.0 Flash', color: 'text-blue-400', bg: 'bg-blue-400/10' },
-    { id: 'google/gemini-pro-1.5', name: 'Gemini 1.5 Pro', color: 'text-blue-600', bg: 'bg-blue-600/10' },
-    { id: 'openai/gpt-4o', name: 'GPT-4o', color: 'text-green-500', bg: 'bg-green-500/10' },
-    { id: 'anthropic/claude-3.5-sonnet', name: 'Claude 3.5 Sonnet', color: 'text-orange-500', bg: 'bg-orange-500/10' },
-];
+const MODELS = CHAT_MODELS;
 
 export function AIChatNode({ id, data }: NodeProps<Node<AIChatNodeData>>) {
     const updateNodeData = useStore((s) => s.updateNodeData);
     const getBrandRules = useStore((s) => s.getBrandRules);
     const getMediaContext = useStore((s) => s.getMediaContext);
+    const getSocialContext = useStore((s) => s.getSocialContext);
     const modelSettings = useStore((s) => s.modelSettings);
 
     const [inputValue, setInputValue] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
-    const selectedModel = data.model || MODELS[0].id;
-    const modelInfo = MODELS.find(m => m.id === selectedModel) || MODELS[0];
+    const selectedModel = data.model || DEFAULT_CHAT_MODEL;
+    const modelInfo = CHAT_MODELS_BY_ID[selectedModel] || MODELS[0];
     const messages: Message[] = data.messages || [
         { role: 'assistant', content: '¡Hola! Soy Bertash. Conectá videos de YouTube y escribí tus reglas de marca. Luego preguntame lo que necesites.' }
     ];
@@ -48,19 +44,24 @@ export function AIChatNode({ id, data }: NodeProps<Node<AIChatNodeData>>) {
     const buildSystemPrompt = (): string => {
         const brandRules = getBrandRules();
         const mediaContext = getMediaContext();
+        const socialContext = getSocialContext();
 
         let system = `Sos Bertash, un asistente experto en estrategia de contenido digital, análisis de videos y marketing en redes sociales. Respondé siempre en español, de forma clara, directa y accionable.`;
 
         if (brandRules) {
-            system += `\n\n## 📋 Reglas de marca activas\n${brandRules}`;
+            system += `\n\n## 📋 Documentos y reglas de marca\n${brandRules}`;
         }
 
         if (mediaContext) {
             system += `\n\n## 📹 Videos conectados\n${mediaContext}`;
         }
 
-        if (!brandRules && !mediaContext) {
-            system += `\n\nTodavía no hay videos ni reglas de marca conectadas. Podés agregar URLs de YouTube en los nodos de video y tus reglas de marca en el nodo de documento.`;
+        if (socialContext) {
+            system += `\n\n## 📱 Perfiles de redes sociales\n${socialContext}`;
+        }
+
+        if (!brandRules && !mediaContext && !socialContext) {
+            system += `\n\nTodavía no hay contexto conectado. Podés subir documentos (PDF, Word, imágenes), pegar perfiles de Instagram/TikTok, agregar URLs de YouTube o escribir reglas de marca en los nodos del canvas.`;
         }
 
         return system;
@@ -117,7 +118,10 @@ export function AIChatNode({ id, data }: NodeProps<Node<AIChatNodeData>>) {
         updateNodeData(id, { model: e.target.value });
     };
 
-    const hasContext = getBrandRules() || getMediaContext();
+    const hasContext = getBrandRules() || getMediaContext() || getSocialContext();
+
+    // Modelos agrupados por proveedor para el dropdown
+    const providers = ['Anthropic', 'Google', 'OpenAI', 'Gratis'] as const;
 
     return (
         <div className="w-96 rounded-2xl bg-background/80 backdrop-blur-xl border border-primary/20 shadow-2xl flex flex-col transition-all overflow-hidden group hover:shadow-primary/10">
@@ -148,28 +152,48 @@ export function AIChatNode({ id, data }: NodeProps<Node<AIChatNodeData>>) {
                                     <Link className="w-2.5 h-2.5" /> Videos
                                 </span>
                             )}
+                            {getSocialContext() && (
+                                <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-pink-500/10 text-pink-400 text-[9px] font-bold">
+                                    <Share2 className="w-2.5 h-2.5" /> Redes
+                                </span>
+                            )}
                         </div>
                     </div>
                 </div>
 
                 {/* Model selector */}
-                <div className="relative group/select">
-                    <select
-                        value={selectedModel}
-                        onChange={handleModelChange}
-                        disabled={isLoading}
-                        className="nodrag appearance-none bg-muted/50 border border-border/50 rounded-full py-1.5 pl-3 pr-8 text-[10px] font-bold focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer hover:bg-muted transition-all text-foreground/80 uppercase tracking-tighter disabled:opacity-50"
-                    >
-                        {MODELS.map(model => (
-                            <option key={model.id} value={model.id} className="bg-background text-foreground">
-                                {model.name}
-                            </option>
-                        ))}
-                    </select>
-                    <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
-                        <svg className="w-2.5 h-2.5 fill-current" viewBox="0 0 20 20">
-                            <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
-                        </svg>
+                <div className="flex items-center gap-1.5">
+                    {modelInfo.vision && (
+                        <span title="Acepta imágenes" className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-[9px] font-bold">
+                            <Eye className="w-2.5 h-2.5" /> visión
+                        </span>
+                    )}
+                    <div className="relative group/select">
+                        <select
+                            value={selectedModel}
+                            onChange={handleModelChange}
+                            disabled={isLoading}
+                            className="nodrag appearance-none bg-muted/50 border border-border/50 rounded-full py-1.5 pl-3 pr-8 text-[10px] font-bold focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer hover:bg-muted transition-all text-foreground/80 uppercase tracking-tighter disabled:opacity-50"
+                        >
+                            {providers.map(prov => {
+                                const group = MODELS.filter(m => m.provider === prov);
+                                if (group.length === 0) return null;
+                                return (
+                                    <optgroup key={prov} label={prov} className="bg-background text-foreground">
+                                        {group.map(model => (
+                                            <option key={model.id} value={model.id} className="bg-background text-foreground">
+                                                {model.name}
+                                            </option>
+                                        ))}
+                                    </optgroup>
+                                );
+                            })}
+                        </select>
+                        <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
+                            <svg className="w-2.5 h-2.5 fill-current" viewBox="0 0 20 20">
+                                <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+                            </svg>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -179,7 +203,7 @@ export function AIChatNode({ id, data }: NodeProps<Node<AIChatNodeData>>) {
                 <div className="px-4 py-2 bg-amber-500/5 border-b border-amber-500/10 flex items-center gap-2">
                     <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
                     <span className="text-[10px] text-amber-500/70 font-medium">
-                        Sin contexto. Conectá videos o reglas de marca para mejores respuestas.
+                        Sin contexto. Subí documentos, pegá perfiles o conectá videos para mejores respuestas.
                     </span>
                 </div>
             )}
