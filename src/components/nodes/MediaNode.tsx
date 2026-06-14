@@ -2,6 +2,7 @@ import { Handle, Position, type NodeProps, type Node } from '@xyflow/react';
 import { useStore, type MediaNodeData } from '../../store/useStore';
 import { Youtube, ExternalLink, Subtitles, Play, Sparkles, Loader2, RotateCcw, CheckCircle2 } from 'lucide-react';
 import { callOpenRouter } from '../../lib/openrouter';
+import { DEFAULT_CHAT_MODEL } from '../../config/chatModels';
 
 function getYouTubeId(url: string) {
     const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
@@ -42,7 +43,7 @@ Respondé en español, de forma estructurada y accionable. Si no podés acceder 
                     { role: 'system', content: 'Sos un experto en análisis de contenido de video y estrategia de medios digitales. Tu objetivo es extraer el máximo valor de cada video para ayudar en estrategias de contenido.' },
                     { role: 'user', content: prompt }
                 ],
-                'google/gemini-2.0-flash-exp:free'
+                DEFAULT_CHAT_MODEL
             );
 
             const analysis = response.choices?.[0]?.message?.content || 'No se pudo obtener el análisis.';

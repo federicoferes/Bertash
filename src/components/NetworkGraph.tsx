@@ -13,18 +13,23 @@ import { useStore } from '../store/useStore';
 import { AIChatNode } from './nodes/AIChatNode';
 import { MediaNode } from './nodes/MediaNode';
 import { DocumentNode } from './nodes/DocumentNode';
+import { SocialProfileNode } from './nodes/SocialProfileNode';
+import { ImageGenNode } from './nodes/ImageGenNode';
+import { DEFAULT_IMAGE_MODEL, defaultParamsFor } from '../config/imageModels';
 import { Plus, LayoutGrid, Zap } from 'lucide-react';
 
 const nodeTypes = {
     aiChat: AIChatNode,
     media: MediaNode,
     document: DocumentNode,
+    social: SocialProfileNode,
+    imageGen: ImageGenNode,
 };
 
 let nodeIdCounter = 100;
 
 export const NetworkGraph = () => {
-    const { nodes, edges, onNodesChange, onEdgesChange, onConnect, addNode, setNodes, setEdges } = useStore();
+    const { nodes, edges, onNodesChange, onEdgesChange, onConnect, addNode, setNodes } = useStore();
     const rfInstanceRef = useRef<ReactFlowInstance | null>(null);
 
     const handleAutoLayout = useCallback(() => {
@@ -78,6 +83,26 @@ export const NetworkGraph = () => {
         });
     }, [addNode]);
 
+    const addSocialNode = useCallback(() => {
+        const id = `social-${++nodeIdCounter}`;
+        addNode({
+            id,
+            type: 'social',
+            position: { x: 100 + Math.random() * 300, y: 100 + Math.random() * 200 },
+            data: { label: 'Perfil Social', input: '', posts: [] },
+        });
+    }, [addNode]);
+
+    const addImageGenNode = useCallback(() => {
+        const id = `img-${++nodeIdCounter}`;
+        addNode({
+            id,
+            type: 'imageGen',
+            position: { x: 500 + Math.random() * 200, y: 250 + Math.random() * 200 },
+            data: { label: 'Generar Imagen', modelSlug: DEFAULT_IMAGE_MODEL, params: defaultParamsFor(DEFAULT_IMAGE_MODEL) },
+        });
+    }, [addNode]);
+
     return (
         <div className="w-full h-full relative rounded-3xl overflow-hidden border border-white/5">
             <ReactFlow
@@ -108,7 +133,9 @@ export const NetworkGraph = () => {
                     className="!border-white/5 !bg-background/80 !backdrop-blur !rounded-2xl"
                     nodeColor={(node) => {
                         if (node.type === 'aiChat') return '#6366f1';
-                        if (node.type === 'media') return '#ec4899';
+                        if (node.type === 'media') return '#ef4444';
+                        if (node.type === 'social') return '#ec4899';
+                        if (node.type === 'imageGen') return '#d946ef';
                         return '#8b5cf6';
                     }}
                     maskColor="rgba(0,0,0,0.5)"
@@ -127,6 +154,18 @@ export const NetworkGraph = () => {
                         className="flex items-center gap-2 px-3 py-2 bg-background/80 backdrop-blur border border-white/10 rounded-xl text-xs font-bold text-indigo-400 hover:bg-indigo-500/10 hover:border-indigo-500/30 transition-all shadow-lg"
                     >
                         <Plus className="w-3.5 h-3.5" /> Doc
+                    </button>
+                    <button
+                        onClick={addSocialNode}
+                        className="flex items-center gap-2 px-3 py-2 bg-background/80 backdrop-blur border border-white/10 rounded-xl text-xs font-bold text-pink-400 hover:bg-pink-500/10 hover:border-pink-500/30 transition-all shadow-lg"
+                    >
+                        <Plus className="w-3.5 h-3.5" /> Perfil
+                    </button>
+                    <button
+                        onClick={addImageGenNode}
+                        className="flex items-center gap-2 px-3 py-2 bg-background/80 backdrop-blur border border-white/10 rounded-xl text-xs font-bold text-fuchsia-400 hover:bg-fuchsia-500/10 hover:border-fuchsia-500/30 transition-all shadow-lg"
+                    >
+                        <Plus className="w-3.5 h-3.5" /> Imagen
                     </button>
                     <button
                         onClick={addChatNode}
