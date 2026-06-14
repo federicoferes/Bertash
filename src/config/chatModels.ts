@@ -29,6 +29,6 @@ export const CHAT_MODELS: ChatModel[] = [
 export const DEFAULT_CHAT_MODEL = 'anthropic/claude-sonnet-4.6';
 
 // Modelo multimodal usado para OCR de imágenes en la edge function vision-extract.
-export const VISION_OCR_MODEL = 'google/gemini-3.5-flash';
+export const VISION_OCR_MODEL = 'anthropic/claude-haiku-4.5';
 
 export const CHAT_MODELS_BY_ID = Object.fromEntries(CHAT_MODELS.map((m) => [m.id, m]));

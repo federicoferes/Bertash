@@ -26,13 +26,8 @@ const DIMS: ImgParam[] = [
     { key: 'height', label: 'Alto', type: 'number', min: 256, max: 2048, default: 1024 },
 ];
 
+// Slugs verificados contra https://api.segmind.com/v1/<slug> (jun 2026).
 export const IMAGE_MODELS: ImageModel[] = [
-    {
-        slug: 'flux-2-klein',
-        name: 'FLUX.2 Klein',
-        avgCost: 0.003,
-        params: [PROMPT, ...DIMS],
-    },
     {
         slug: 'nano-banana-2',
         name: 'Nano Banana 2',
@@ -77,7 +72,7 @@ export const IMAGE_MODELS: ImageModel[] = [
 ];
 
 export const IMAGE_MODELS_BY_SLUG = Object.fromEntries(IMAGE_MODELS.map((m) => [m.slug, m]));
-export const DEFAULT_IMAGE_MODEL = 'flux-2-klein';
+export const DEFAULT_IMAGE_MODEL = 'nano-banana-2';
 
 export function defaultParamsFor(slug: string): Record<string, unknown> {
     const model = IMAGE_MODELS_BY_SLUG[slug];

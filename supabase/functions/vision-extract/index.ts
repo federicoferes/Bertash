@@ -6,7 +6,8 @@ const corsHeaders = {
 }
 
 // Modelo multimodal usado para extraer texto de imágenes (OCR + descripción).
-const VISION_MODEL = 'google/gemini-3.5-flash'
+// Claude no gasta budget en reasoning por defecto → devuelve el texto directo.
+const VISION_MODEL = 'anthropic/claude-haiku-4.5'
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -34,6 +35,7 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         model: model || VISION_MODEL,
+        max_tokens: 4096,
         messages: [
           {
             role: 'system',
